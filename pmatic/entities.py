@@ -201,6 +201,14 @@ class Channel(utils.LogMixin, Entity):
                 cls.cls_logger().debug("Using generic Channel class (Type: %s): %r" %
                                                     (channel_dict["type"], channel_dict))
 
+            if channel_dict["address"].startswith("INT"):
+                # Need to patch missing mandatory attributes for the channel because channels
+                # in virtual devices are missing those
+                channel_dict["direction"] = 0
+                channel_dict["index"] = int(channel_dict["address"][channel_dict["address"].find(":")+1:])
+                channel_dict["link_source_roles"] = []
+                channel_dict["link_target_roles"] = []
+
             channel_objects[channel_dict["index"]] = channel_class(device, channel_dict)
         return channel_objects
 
@@ -231,7 +239,7 @@ class Channel(utils.LogMixin, Entity):
         This method is called on the first access to the values.
         """
         self._values.clear()
-        for value_spec in self._ccu.api.interface_get_paramset_description(interface="BidCos-RF",
+        for value_spec in self._ccu.api.interface_get_paramset_description(interface=self.interface,
                                                     address=self.address, paramsetType="VALUES"):
             self._init_value_spec(value_spec)
 
@@ -361,7 +369,7 @@ class Channel(utils.LogMixin, Entity):
             if value.readable:
                 try:
                     values[value.id] = self._ccu.api.interface_get_value(
-                                                        interface="BidCos-RF",
+                                                        interface=self.interface,
                                                         address=self.address,
                                                         valueKey=value.internal_name)
                 except PMException as e:
@@ -393,6 +401,9 @@ class Channel(utils.LogMixin, Entity):
             formated.append("%s: %s" % (title, value))
         return ", ".join(formated)
 
+    @property
+    def is_virtual_channel(self):
+        return self.address.startswith("INT")
 
     def set_logic_attributes(self, attrs):
         """Used to update the logic attributes of this channel.
@@ -464,7 +475,6 @@ class Channel(utils.LogMixin, Entity):
             for func in callbacks:
                 for value in values:
                     value.register_callback(cb_name, func)
-
 
 
 # FIXME: Implement this. The Device() object already has a lot of methods
@@ -686,9 +696,9 @@ class ChannelClimaRTTransceiver(Channel):
         """Provides the actual and target temperature together with the valve state in
         some readable format."""
         return "Temperature: %s (Target: %s, Valve: %s)" % \
-                (self.values["ACTUAL_TEMPERATURE"],
-                 self.values["SET_TEMPERATURE"],
-                 self.values["VALVE_STATE"])
+               (self.values["ACTUAL_TEMPERATURE"],
+                self.values["SET_TEMPERATURE"],
+                self.values["VALVE_STATE"] if "VALVE_STATE" in self.values else "NA")
 
 
     def _get_class_name_of_param_spec(self, param_spec):

@@ -827,10 +827,22 @@ class DeviceSpecs(CachedAPICall):
         devices = {}
         for spec in self._api.interface_list_devices(interface="BidCos-RF"):
             spec = decamel_dict_keys(spec)
+            spec["interface"] = "BidCos-RF"
             if "parent" not in spec:
                 devices[spec["address"]] = spec
             else:
                 device = devices[spec["parent"]]
+                channels = device.setdefault("channels", [])
+                channels.append(spec)
+
+        for spec in self._api.interface_list_devices(interface="VirtualDevices"):
+            spec = decamel_dict_keys(spec)
+            spec["interface"] = "VirtualDevices"
+            addr = spec["address"]
+            if ":" not in addr:
+                devices[addr] = spec
+            else:
+                device = devices[addr[:addr.find(":")]]
                 channels = device.setdefault("channels", [])
                 channels.append(spec)
 

@@ -74,7 +74,13 @@ class Parameter(utils.CallbackMixin):
             # for the specific object type
             trans_func = self._transform_attributes.get(key)
             if trans_func:
-                val = trans_func(val)
+                try:
+                    val = trans_func(val)
+                except ValueError as e:
+                    if self.channel.is_virtual_channel:
+                        # Need to fall back to a default value for parameters in
+                        # virtual groups because they are sometimes totally wrong
+                        val = trans_func(0)
 
             # Change the CCU internal "name" to internal_name
             if key.lower() == "name":
