@@ -1314,6 +1314,123 @@ class HM_CC_RT_DN(Device):
             return self.channels[4].values["BOOST_STATE"]
 
 
+# Funk-Wandthermostat
+class HM_TC_IT_WM_W_EU(Device):
+    type_name = "HM-TC-IT-WM-W-EU"
+
+    @property
+    def temperature(self):
+        """Provides the current temperature.
+
+        Returns an instance of :class:`ParameterFLOAT`.
+        """
+        return self.channels[2].values["ACTUAL_TEMPERATURE"]
+
+
+    #{u'CONTROL': u'NONE', u'OPERATIONS': u'5', u'NAME': u'VALVE_STATE', u'MIN': u'0',
+    # u'DEFAULT': u'0', u'MAX': u'99', u'TAB_ORDER': u'3', u'FLAGS': u'1', u'TYPE': u'INTEGER',
+    # u'ID': u'VALVE_STATE', u'UNIT': u'%'}
+    @property
+    def humidity(self):
+        """Provides the current valve state in percentage.
+
+        Returns an instance of :class:`ParameterINTEGER`.
+        """
+        return self.channels[2].values["ACTUAL_HUMIDITY"]
+
+
+    @property
+    def set_temperature(self):
+        """The actual set temperature of the device.
+
+        :getter: Provides the actual target temperature as :class:`ParameterFLOAT`.
+        :setter: Specify the new set temperature as float. Please note that the CCU rounds
+                 this values to
+                 .0 or .5 after the comma. So if you provide .e.g 22.1 as new set temperature,
+                 the CCU will convert this to 22.0. This is totally equal to the control on the
+                 device.
+        :type: ParameterFloat/float
+        """
+        return self.channels[2].values["SET_TEMPERATURE"]
+
+
+    @set_temperature.setter
+    def set_temperature(self, target):
+        self.channels[2].values["SET_TEMPERATURE"].value = target
+
+
+    @property
+    def is_off(self):
+        """Is set to `True` when the device is not enabled to heat."""
+        return self.set_temperature.value == 4.5
+
+
+    def turn_off(self):
+        """Call this method to tell the thermostat that it should not heat."""
+        self.set_temperature = 4.5
+
+
+    @property
+    def control_mode(self):
+        """
+        The actual control mode of the device. This is either ``AUTO``, ``MANUAL``,
+        ``PARTY`` or ``BOOST``.
+
+        :getter: Provides the current control mode as :class:`ParameterENUM`.
+        :setter: Set the control mode by the name of the mode (see above). When setting
+                 to ``MANUAL`` it uses either the current set temperature as target
+                 temperature or the default temperature when the
+                 device is currently turned off.
+        :type: ParameterENUM/string
+        """
+        return self.channels[2].values["CONTROL_MODE"]
+
+
+    @control_mode.setter
+    def control_mode(self, mode):
+        modes = ["AUTO", "MANUAL", "PARTY", "BOOST"]
+        if mode not in modes:
+            raise PMException("The control mode must be one of: %s" % ", ".join(modes))
+
+        if mode == "MANUAL":
+            mode = "MANU"
+
+        value = True
+
+        # In manual mode the set temperature needs to be provided. Set it to the
+        # current set temperature. When the set temperature is "off", use the default
+        # value.
+        if mode == "MANU":
+            if self.is_off:
+                value = self.set_temperature.default
+                # Also set the set_temperature attribute
+                self.set_temperature = value
+            else:
+                value = self.set_temperature.value
+
+        self.channels[2].values["%s_MODE" % mode].value = value
+
+
+    @property
+    def battery_state(self):
+        """Provides the actual battery voltage reported by the device."""
+        return self.channels[2].values["BATTERY_STATE"]
+
+
+    # {u'CONTROL': u'NONE', u'OPERATIONS': u'5', u'NAME': u'BOOST_STATE', u'MIN': u'0',
+    #  u'DEFAULT': u'0', u'MAX': u'30', u'TAB_ORDER': u'4', u'FLAGS': u'1',
+    #  u'TYPE': u'INTEGER', u'ID': u'BOOST_STATE', u'UNIT': u'min'}
+    @property
+    def boost_duration(self):
+        """When boost mode is currently active this returns the number of minutes left
+        in boost mode. Otherwise it returns ``None``.
+
+        Provides the configured boost duration as :class:`ParameterINTEGER`.
+        """
+        if self.control_mode == "BOOST":
+            return self.channels[2].values["BOOST_STATE"]
+
+
 
 # Funk-Temperatur-/Luftfeuchtesensor OTH
 class HM_WDS10_TH_O(Device):
