@@ -338,9 +338,16 @@ class Channel(utils.LogMixin, Entity):
     def _get_values_bulk(self):
         """Fetches all values of this channel at once. This is the default method to
         fetch the values."""
-        return self._ccu.api.interface_get_paramset(interface="BidCos-RF",
-                                         address=self.address, paramsetKey="VALUES")
-
+        values = self._ccu.xmlapi.get_paramset(self.address, 'VALUES', 1)
+        sanitized_values = {}
+        for param_id, undefined_value in values.items():
+            is_undefined, value = undefined_value['UNDEFINED'], undefined_value['VALUE']
+            if not is_undefined:
+                sanitized_values[param_id] = value
+            else:
+                self.logger.info("%s (%s - %s): Parameter %s not initialized, falling back to default value.",
+                                    self.address, self.device.name, self.name, param_id)
+        return sanitized_values
 
     def _get_values_single(self, skip_invalid_values=False):
         """Fetches all values known to be readable one by one. One should always
@@ -761,41 +768,11 @@ class ChannelWeatherTransmit(Channel):
 class ChannelThermalControlTransmit(Channel):
     type_name = "THERMALCONTROL_TRANSMIT"
 
-    def _init_value_spec(self, value_spec):
-        # The value PARTY_MODE_SUBMIT seems to be declared to be readable by
-        # the CCU which is wrong. This value can not be read.
-        # See <https://github.com/LarsMichelsen/pmatic/issues/7>.
-        if value_spec["ID"] == "PARTY_MODE_SUBMIT":
-            value_spec["OPERATIONS"] = "2"
-        super(ChannelThermalControlTransmit, self)._init_value_spec(value_spec)
-
-
-    def _get_values(self):
-        # This is needed to not let the CCU decide which values to be read from
-        # the device because of the bug mentioned above.
-        return self._get_values_single()
-
-
 
 # Devices:
 #  HM-TC-IT-WM-W-EU
 class ChannelSwitchTransmit(Channel):
     type_name = "SWITCH_TRANSMIT"
-
-    def _init_value_spec(self, value_spec):
-        # The value SWITCH_TRANSMIT seems to be declared to be readable by
-        # the CCU which is wrong. This value can not be read.
-        # See <https://github.com/LarsMichelsen/pmatic/issues/7>.
-        if value_spec["ID"] == "DECISION_VALUE":
-            value_spec["OPERATIONS"] = "4" # only supports events
-        super(ChannelSwitchTransmit, self)._init_value_spec(value_spec)
-
-
-    def _get_values(self):
-        # This is needed to not let the CCU decide which values to be read from
-        # the device because of the bug mentioned above.
-        return self._get_values_single()
-
 
 
 class Devices(object):

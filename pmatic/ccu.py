@@ -41,6 +41,7 @@ import re
 import threading
 
 import pmatic.api
+import pmatic.xml_api
 import pmatic.events
 import pmatic.utils as utils
 from pmatic.entities import Devices, Device, Rooms, Room
@@ -76,6 +77,7 @@ class CCU(object):
 
         super(CCU, self).__init__()
         self.api = pmatic.api.init(**kwargs)
+        self.xmlapi = pmatic.xml_api.init(**kwargs)
         self._rssi = None
         self._devices = None
         self._events = None
