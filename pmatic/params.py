@@ -356,7 +356,10 @@ class ParameterINTEGER(ParameterNUMERIC):
     )
 
     def _from_api_value(self, value):
-        return int(value)
+        try:
+            return int(value)
+        except ValueError:
+            return int()
 
 
     def _to_api_value(self, value):
